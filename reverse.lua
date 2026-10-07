@@ -9,6 +9,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
+local isR6 = (humanoid.RigType == Enum.HumanoidRigType.R6)
 
 local parentGui = (gethui and gethui()) or CoreGui
 if parentGui:FindFirstChild("FlingReverseDeltaGui") then
@@ -67,14 +68,23 @@ local function createTabBtn(text, pos, size)
 	return btn
 end
 
-local tabCount = 5
+local tabCount = isR6 and 5 or 4
 local tabWidth = 1 / tabCount
 
 local tab1Btn = createTabBtn("Fling", UDim2.new(0 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
 local tab2Btn = createTabBtn("Reverse", UDim2.new(1 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
-local tab3Btn = createTabBtn("Animacao", UDim2.new(2 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
-local tab4Btn = createTabBtn("Head", UDim2.new(3 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
-local tab5Btn = createTabBtn("Extras", UDim2.new(4 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
+local tab3Btn = nil
+local tab4Btn = nil
+local tab5Btn = nil
+
+if isR6 then
+	tab3Btn = createTabBtn("Animacao", UDim2.new(2 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
+	tab4Btn = createTabBtn("Head", UDim2.new(3 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
+	tab5Btn = createTabBtn("Extras", UDim2.new(4 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
+else
+	tab4Btn = createTabBtn("Head", UDim2.new(2 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
+	tab5Btn = createTabBtn("Extras", UDim2.new(3 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
+end
 
 tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
@@ -91,12 +101,15 @@ page2.BackgroundTransparency = 1
 page2.Visible = false
 page2.Parent = mainFrame
 
-local page3 = Instance.new("Frame")
-page3.Size = UDim2.new(1, 0, 0.85, 0)
-page3.Position = UDim2.new(0, 0, 0.15, 0)
-page3.BackgroundTransparency = 1
-page3.Visible = false
-page3.Parent = mainFrame
+local page3 = nil
+if isR6 then
+	page3 = Instance.new("Frame")
+	page3.Size = UDim2.new(1, 0, 0.85, 0)
+	page3.Position = UDim2.new(0, 0, 0.15, 0)
+	page3.BackgroundTransparency = 1
+	page3.Visible = false
+	page3.Parent = mainFrame
+end
 
 local pageHead = Instance.new("Frame")
 pageHead.Size = UDim2.new(1, 0, 0.85, 0)
@@ -420,7 +433,7 @@ playBtn.MouseButton1Click:Connect(function()
 	end)
 end)
 
--- ABA 3: ANIMAÇÃO + RAGDOLL CORRIGIDO (SEM BUG E IMPEDINDO O JOGO DE DESATIVAR)
+-- ABA 3: ANIMAÇÃO + RAGDOLL
 local isHelicopter = false
 local isCrazyAnim = false
 local isRagdoll = false
@@ -428,7 +441,7 @@ local spinSpeed = 50
 local ragdollFolder = nil
 local ragdollSteppedConnection = nil
 
-do
+if isR6 and page3 then
 	local heliBtn = createButton(page3, "Helicoptero FE", UDim2.new(0.05, 0, 0.03, 0), nil, Color3.fromRGB(130, 60, 200))
 	local crazyBtn = createButton(page3, "Spin Doido FE", UDim2.new(0.05, 0, 0.14, 0), nil, Color3.fromRGB(200, 100, 30))
 	local ragdollBtn = createButton(page3, "Ragdoll FE (Fix)", UDim2.new(0.05, 0, 0.25, 0), nil, Color3.fromRGB(180, 140, 20))
@@ -474,7 +487,6 @@ do
 				end
 			end
 
-			-- LOOP CONTINUO QUE IMPEDE QUE O PRÓPRIO JOGO REATIVE AS JUNTAS
 			ragdollSteppedConnection = RunService.Stepped:Connect(function()
 				if isRagdoll and character and humanoid then
 					humanoid:ChangeState(Enum.HumanoidStateType.Physics)
@@ -559,7 +571,7 @@ do
 	end)
 end
 
--- ABA HEAD: SENTAR SEM BUG
+-- ABA HEAD: SENTAR SEM BUG DE MOVIMENTO OU EM PÉ
 local isSittingOnHead = false
 local headMode = "Head"
 local headTarget = nil
@@ -594,6 +606,7 @@ createSlider(pageHead, "Distancia Costas", UDim2.new(0.05, 0, 0.52, 0), 0.5, 3.0
 end)
 
 local saveSlidersBtn = createButton(pageHead, "💾 Salvar Config dos Sliders", UDim2.new(0.05, 0, 0.68, 0), nil, Color3.fromRGB(40, 180, 80))
+
 saveSlidersBtn.MouseButton1Click:Connect(function()
 	savedSettings.headHeight = headOffsetHeight
 	savedSettings.backDistance = backDistOffset
@@ -622,7 +635,16 @@ local function enableSittingState()
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+		humanoid:ChangeState(Enum.HumanoidStateType.Seated)
 		humanoid.Sit = true
+	end
+	if character then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
 	end
 end
 
@@ -630,7 +652,16 @@ local function disableSittingState()
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
 		humanoid.Sit = false
+		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+	end
+	if character then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+				part.CanCollide = true
+			end
+		end
 	end
 end
 
@@ -668,7 +699,7 @@ stopSitBtn.MouseButton1Click:Connect(function()
 	disableSittingState()
 end)
 
--- ABA EXTRAS (BARREIRA COM TRANSPARÊNCIA AJUSTADA PARA VER ATRAVÉS DO BLOCO)
+-- ABA EXTRAS
 local activeCage = nil
 local cageSize = 15
 
@@ -715,7 +746,7 @@ local function buildCage(size)
 		wall.Anchored = true
 		wall.CanCollide = true
 		wall.Material = Enum.Material.Neon
-		wall.Transparency = 0.85 -- Transparência alta para ver claramente através do bloco
+		wall.Transparency = 0.85
 		wall.Parent = activeCage
 	end
 
@@ -769,7 +800,11 @@ RunService.RenderStepped:Connect(function()
 		elseif headMode == "Back" then
 			rootPart.CFrame = headTarget.CFrame * CFrame.new(0, headOffsetHeight - 1.5, backDistOffset) * CFrame.Angles(0, math.rad(180), 0)
 		end
-		if humanoid then humanoid.Sit = true end
+		
+		if humanoid then
+			humanoid.Sit = true
+			humanoid:ChangeState(Enum.HumanoidStateType.Seated)
+		end
 	end
 
 	if activeCage then
@@ -814,7 +849,8 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 	
-			if isHelicopter and rootPart then
+	if isR6 then
+		if isHelicopter and rootPart then
 			rootPart.AssemblyAngularVelocity = Vector3.new(0, spinSpeed, 0)
 		end
 		
@@ -825,4 +861,5 @@ RunService.Heartbeat:Connect(function()
 				math.random(-spinSpeed*2, spinSpeed*2)
 			)
 		end
+	end
 end)

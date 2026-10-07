@@ -396,9 +396,33 @@ local savedSettings = {
 
 
 
+-- CARREGA CONFIG SALVA (se o executor suportar arquivos)
+local CONFIG_FILE = "TrollReverseConfig.json"
+pcall(function()
+	if isfile and readfile and isfile(CONFIG_FILE) then
+		local data = game:GetService("HttpService"):JSONDecode(readfile(CONFIG_FILE))
+		if type(data) == "table" then
+			savedSettings.headHeight = tonumber(data.headHeight) or savedSettings.headHeight
+			savedSettings.backDistance = tonumber(data.backDistance) or savedSettings.backDistance
+		end
+	end
+end)
+
 local headOffsetHeight = savedSettings.headHeight
 
 local backDistOffset = savedSettings.backDistance
+
+local function saveSettings()
+	pcall(function()
+		if writefile then
+			writefile(CONFIG_FILE, game:GetService("HttpService"):JSONEncode({
+				headHeight = headOffsetHeight,
+				backDistance = backDistOffset
+			}))
+		end
+	end)
+end
+
 
 
 
@@ -1162,4 +1186,20 @@ RunService.RenderStepped:Connect(function()
 
 	end
 
+end)
+
+
+-- LOOP DO FLING: aplica força e grava histórico para o Reverse
+local lastSaveH, lastSaveB = headOffsetHeight, backDistOffset
+RunService.Heartbeat:Connect(function()
+	if isFlinging and not isReversingFling and rootPart and rootPart.Parent then
+		table.insert(flingHistory, rootPart.CFrame)
+		if #flingHistory > 3000 then table.remove(flingHistory, 1) end
+		rootPart.AssemblyLinearVelocity = rootPart.CFrame.LookVector * flingPower + Vector3.new(0, flingPower * 0.3, 0)
+		rootPart.AssemblyAngularVelocity = Vector3.new(0, flingPower, 0)
+	end
+	if headOffsetHeight ~= lastSaveH or backDistOffset ~= lastSaveB then
+		lastSaveH, lastSaveB = headOffsetHeight, backDistOffset
+		saveSettings()
+	end
 end)

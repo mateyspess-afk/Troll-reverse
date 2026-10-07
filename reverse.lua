@@ -607,7 +607,6 @@ createSlider(pageHead, "Distancia Costas", UDim2.new(0.05, 0, 0.52, 0), 0.5, 3.0
 end)
 
 local saveSlidersBtn = createButton(pageHead, "💾 Salvar Config dos Sliders", UDim2.new(0.05, 0, 0.68, 0), nil, Color3.fromRGB(40, 180, 80))
-
 saveSlidersBtn.MouseButton1Click:Connect(function()
 	savedSettings.headHeight = headOffsetHeight
 	savedSettings.backDistance = backDistOffset

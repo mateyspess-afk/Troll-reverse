@@ -10,7 +10,3 @@ Projeto de script em Lua para Roblox. O arquivo [0m`Reverse.lua`[0m foi removi
 - Opções de animação e ragdoll para personagens R6.
 - Ações de sentar na cabeça ou atrás de um jogador selecionado.
 - Criação e remoção de uma barreira ao redor do personagem.
-
-## Aviso
-
-Os recursos da versão anterior alteravam o movimento e o estado de personagens. Use scripts apenas em experiências próprias ou com autorização, respeitando as regras do Roblox e de cada experiência.

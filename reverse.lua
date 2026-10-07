@@ -9,7 +9,6 @@ local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
-local isR6 = (humanoid.RigType == Enum.HumanoidRigType.R6)
 
 local parentGui = (gethui and gethui()) or CoreGui
 if parentGui:FindFirstChild("FlingReverseDeltaGui") then
@@ -68,23 +67,14 @@ local function createTabBtn(text, pos, size)
 	return btn
 end
 
-local tabCount = isR6 and 5 or 4
+local tabCount = 5
 local tabWidth = 1 / tabCount
 
 local tab1Btn = createTabBtn("Fling", UDim2.new(0 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
 local tab2Btn = createTabBtn("Reverse", UDim2.new(1 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
-local tab3Btn = nil
-local tab4Btn = nil
-local tab5Btn = nil
-
-if isR6 then
-	tab3Btn = createTabBtn("Animacao", UDim2.new(2 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
-	tab4Btn = createTabBtn("Head", UDim2.new(3 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
-	tab5Btn = createTabBtn("Extras", UDim2.new(4 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
-else
-	tab4Btn = createTabBtn("Head", UDim2.new(2 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
-	tab5Btn = createTabBtn("Extras", UDim2.new(3 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
-end
+local tab3Btn = createTabBtn("Animacao", UDim2.new(2 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
+local tab4Btn = createTabBtn("Head", UDim2.new(3 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
+local tab5Btn = createTabBtn("Extras", UDim2.new(4 * tabWidth, 0, 0, 0), UDim2.new(tabWidth, 0, 1, 0))
 
 tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
@@ -101,15 +91,12 @@ page2.BackgroundTransparency = 1
 page2.Visible = false
 page2.Parent = mainFrame
 
-local page3 = nil
-if isR6 then
-	page3 = Instance.new("Frame")
-	page3.Size = UDim2.new(1, 0, 0.85, 0)
-	page3.Position = UDim2.new(0, 0, 0.15, 0)
-	page3.BackgroundTransparency = 1
-	page3.Visible = false
-	page3.Parent = mainFrame
-end
+local page3 = Instance.new("Frame")
+page3.Size = UDim2.new(1, 0, 0.85, 0)
+page3.Position = UDim2.new(0, 0, 0.15, 0)
+page3.BackgroundTransparency = 1
+page3.Visible = false
+page3.Parent = mainFrame
 
 local pageHead = Instance.new("Frame")
 pageHead.Size = UDim2.new(1, 0, 0.85, 0)
@@ -441,7 +428,7 @@ local spinSpeed = 50
 local ragdollFolder = nil
 local ragdollSteppedConnection = nil
 
-if isR6 and page3 then
+do
 	local heliBtn = createButton(page3, "Helicoptero FE", UDim2.new(0.05, 0, 0.03, 0), nil, Color3.fromRGB(130, 60, 200))
 	local crazyBtn = createButton(page3, "Spin Doido FE", UDim2.new(0.05, 0, 0.14, 0), nil, Color3.fromRGB(200, 100, 30))
 	local ragdollBtn = createButton(page3, "Ragdoll FE (Fix)", UDim2.new(0.05, 0, 0.25, 0), nil, Color3.fromRGB(180, 140, 20))
@@ -827,8 +814,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 	
-	if isR6 then
-		if isHelicopter and rootPart then
+			if isHelicopter and rootPart then
 			rootPart.AssemblyAngularVelocity = Vector3.new(0, spinSpeed, 0)
 		end
 		
@@ -839,5 +825,4 @@ RunService.Heartbeat:Connect(function()
 				math.random(-spinSpeed*2, spinSpeed*2)
 			)
 		end
-	end
 end)

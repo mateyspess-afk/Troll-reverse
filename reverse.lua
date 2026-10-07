@@ -40,7 +40,7 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, 0, 0, 25)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "Troll Reverse (Fix)"
+titleLabel.Text = "Troll Reverse (FE Fix)"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.SourceSansBold
@@ -452,8 +452,6 @@ if isR6 and page3 then
 	end)
 
 	local function toggleRagdoll(state)
-		if not character or not humanoid then return end
-		
 		if ragdollSteppedConnection then
 			ragdollSteppedConnection:Disconnect()
 			ragdollSteppedConnection = nil
@@ -571,10 +569,14 @@ if isR6 and page3 then
 	end)
 end
 
--- ABA HEAD: SENTAR SEM BUG DE MOVIMENTO OU EM PÉ
+-- ABA HEAD: SENTAR COM SINCRONIZAÇÃO DE FÍSICA E NETWORK OWNERSHIP
 local isSittingOnHead = false
 local headMode = "Head"
 local headTarget = nil
+local alignPosition = nil
+local alignOrientation = nil
+local att0 = nil
+local att1 = nil
 
 local nameInput = Instance.new("TextBox")
 nameInput.Size = UDim2.new(0.9, 0, 0.07, 0)
@@ -631,6 +633,42 @@ local function getPlayerByPartialName(partial)
 	return nil
 end
 
+local function cleanupAlign()
+	if alignPosition then alignPosition:Destroy() alignPosition = nil end
+	if alignOrientation then alignOrientation:Destroy() alignOrientation = nil end
+	if att0 then att0:Destroy() att0 = nil end
+	if att1 then att1:Destroy() att1 = nil end
+end
+
+local function setupAlignPhysics(targetPart)
+	cleanupAlign()
+	if not rootPart or not targetPart then return end
+
+	att0 = Instance.new("Attachment")
+	att0.Name = "SitAtt0"
+	att0.Parent = rootPart
+
+	att1 = Instance.new("Attachment")
+	att1.Name = "SitAtt1"
+	att1.Parent = targetPart
+
+	alignPosition = Instance.new("AlignPosition")
+	alignPosition.MaxForce = 9999999
+	alignPosition.MaxVelocity = 1000
+	alignPosition.Responsiveness = 200
+	alignPosition.Attachment0 = att0
+	alignPosition.Attachment1 = att1
+	alignPosition.Parent = rootPart
+
+	alignOrientation = Instance.new("AlignOrientation")
+	alignOrientation.MaxTorque = 9999999
+	alignOrientation.MaxAngularVelocity = 1000
+	alignOrientation.Responsiveness = 200
+	alignOrientation.Attachment0 = att0
+	alignOrientation.Attachment1 = att1
+	alignOrientation.Parent = rootPart
+end
+
 local function enableSittingState()
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
@@ -643,12 +681,14 @@ local function enableSittingState()
 		for _, part in ipairs(character:GetDescendants()) do
 			if part:IsA("BasePart") then
 				part.CanCollide = false
+				part.Massless = true
 			end
 		end
 	end
 end
 
 local function disableSittingState()
+	cleanupAlign()
 	if humanoid then
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
@@ -660,6 +700,7 @@ local function disableSittingState()
 		for _, part in ipairs(character:GetDescendants()) do
 			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 				part.CanCollide = true
+				part.Massless = false
 			end
 		end
 	end
@@ -672,6 +713,7 @@ sitHeadBtn.MouseButton1Click:Connect(function()
 		headMode = "Head"
 		isSittingOnHead = true
 		enableSittingState()
+		setupAlignPhysics(headTarget)
 	else
 		sitHeadBtn.Text = "Jogador Nao Encontrado!"
 		task.wait(1.5)
@@ -681,11 +723,12 @@ end)
 
 sitBackBtn.MouseButton1Click:Connect(function()
 	local target = getPlayerByPartialName(nameInput.Text)
-	if target and target.Character and target.Character:FindFirstChild("Head") then
-		headTarget = target.Character.Head
+	if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+		headTarget = target.Character.HumanoidRootPart
 		headMode = "Back"
 		isSittingOnHead = true
 		enableSittingState()
+		setupAlignPhysics(headTarget)
 	else
 		sitBackBtn.Text = "Jogador Nao Encontrado!"
 		task.wait(1.5)
@@ -794,13 +837,15 @@ RunService.RenderStepped:Connect(function()
 	if isSittingOnHead and headTarget and headTarget.Parent and rootPart then
 		rootPart.AssemblyLinearVelocity = Vector3.zero
 		rootPart.AssemblyAngularVelocity = Vector3.zero
-		
-		if headMode == "Head" then
-			rootPart.CFrame = headTarget.CFrame * CFrame.new(0, headOffsetHeight, 0)
-		elseif headMode == "Back" then
-			rootPart.CFrame = headTarget.CFrame * CFrame.new(0, headOffsetHeight - 1.5, backDistOffset) * CFrame.Angles(0, math.rad(180), 0)
+
+		if att1 then
+			if headMode == "Head" then
+				att1.CFrame = CFrame.new(0, headOffsetHeight, 0)
+			elseif headMode == "Back" then
+				att1.CFrame = CFrame.new(0, headOffsetHeight - 1.5, backDistOffset) * CFrame.Angles(0, math.rad(180), 0)
+			end
 		end
-		
+
 		if humanoid then
 			humanoid.Sit = true
 			humanoid:ChangeState(Enum.HumanoidStateType.Seated)

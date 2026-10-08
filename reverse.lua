@@ -634,62 +634,67 @@ local function getPlayerByPartialName(partial)
 	return nil
 end
 
+local headPlayer = nil
+local lockConnection = nil
+local stepConnection = nil
+
 local function destroySeat()
-	if seatWeld then
-		seatWeld:Destroy()
-		seatWeld = nil
-	end
-	if invisibleSeat then
-		invisibleSeat:Destroy()
-		invisibleSeat = nil
+	if lockConnection then lockConnection:Disconnect() lockConnection = nil end
+	if stepConnection then stepConnection:Disconnect() stepConnection = nil end
+end
+
+local function getTargetParts()
+	if not headPlayer or not headPlayer.Parent then return nil end
+	local char = headPlayer.Character
+	if not char then return nil end
+	local tRoot = char:FindFirstChild("HumanoidRootPart")
+	local tHead = char:FindFirstChild("Head")
+	if not tRoot or not tHead then return nil end
+	return tRoot, tHead
+end
+
+-- CFrame onde o seu HumanoidRootPart deve ficar (travado no alvo)
+local function getLockCFrame()
+	local tRoot, tHead = getTargetParts()
+	if not tRoot then return nil end
+	if headMode == "Head" then
+		-- em cima da cabeca, olhando pra mesma direcao do alvo
+		local rot = tRoot.CFrame - tRoot.CFrame.Position
+		local pos = tHead.Position + Vector3.new(0, headOffsetHeight + 0.5, 0)
+		return CFrame.new(pos) * rot
+	else
+		-- costa com costa: atras do alvo, virado pro lado oposto
+		return tRoot.CFrame * CFrame.new(0, headOffsetHeight - 1.5, backDistOffset) * CFrame.Angles(0, math.pi, 0)
 	end
 end
 
-local function getFlatTargetCFrame()
-	if not headTarget or not headTarget.Parent then return nil end
-	local targetRoot = headTarget.Parent:FindFirstChild("HumanoidRootPart")
-	if not targetRoot then return nil end
-
-	local look = targetRoot.CFrame.LookVector
-	local flatLook = Vector3.new(look.X, 0, look.Z)
-	if flatLook.Magnitude < 0.001 then
-		flatLook = Vector3.new(0, 0, -1)
-	else
-		flatLook = flatLook.Unit
-	end
-
-	local position
-	if headMode == "Head" then
-		position = Vector3.new(targetRoot.Position.X, headTarget.Position.Y + headOffsetHeight, targetRoot.Position.Z)
-	else
-		position = targetRoot.Position - (flatLook * backDistOffset) + Vector3.new(0, headOffsetHeight - 1.5, 0)
-		flatLook = -flatLook
-	end
-
-	return CFrame.lookAt(position, position + flatLook)
+local function applyLock()
+	if not isSittingOnHead then return end
+	if not rootPart or not rootPart.Parent or not humanoid then return end
+	local cf = getLockCFrame()
+	if not cf then return end
+	rootPart.CFrame = cf
+	rootPart.AssemblyLinearVelocity = Vector3.zero
+	rootPart.AssemblyAngularVelocity = Vector3.zero
+	if not humanoid.Sit then humanoid.Sit = true end
 end
 
 local function createInvisibleSeat()
 	destroySeat()
-	local seatCFrame = getFlatTargetCFrame()
-	if not seatCFrame or not humanoid or not rootPart then return false end
-
-	invisibleSeat = Instance.new("Seat")
-	invisibleSeat.Name = "InvisibleHeadSeat"
-	invisibleSeat.Size = Vector3.new(2, 0.5, 2)
-	invisibleSeat.Transparency = 1
-	invisibleSeat.CanCollide = false
-	invisibleSeat.CanTouch = false
-	invisibleSeat.CanQuery = false
-	invisibleSeat.Anchored = true
-	invisibleSeat.CFrame = seatCFrame
-	invisibleSeat.Parent = Workspace
-
-	rootPart.CFrame = seatCFrame * CFrame.new(0, 1.5, 0)
-	invisibleSeat:Sit(humanoid)
-	task.wait()
-	seatWeld = invisibleSeat:FindFirstChild("SeatWeld")
-	return seatWeld ~= nil
+	if not humanoid or not rootPart then return false end
+	if not getLockCFrame() then return false end
+	humanoid.Sit = true
+	applyLock()
+	-- tira colisao todo frame (o Roblox reativa sozinho)
+	stepConnection = RunService.Stepped:Connect(function()
+		if not isSittingOnHead or not character then return end
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then part.CanCollide = false end
+		end
+	end)
+	-- trava a posicao depois da fisica
+	lockConnection = RunService.Heartbeat:Connect(applyLock)
+	return true
 end
 
 local function enableSittingState()
@@ -707,6 +712,7 @@ local function enableSittingState()
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
 	end
 end
 
@@ -716,8 +722,11 @@ local function disableSittingState()
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
 		humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
-		humanoid.Sit = false
-		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+		if humanoid.Sit then
+			humanoid.Sit = false
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
 	end
 	for part, state in pairs(originalPartState) do
 		if part and part.Parent then
@@ -729,15 +738,19 @@ local function disableSittingState()
 end
 
 local function startInvisibleSeat(target, mode)
+	isSittingOnHead = false
 	disableSittingState()
-	headTarget = mode == "Head" and target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
+	headPlayer = target
 	headMode = mode
-	if not headTarget then return false end
+	headTarget = target.Character and target.Character:FindFirstChild("Head")
+	if not headTarget then headPlayer = nil return false end
+	isSittingOnHead = true
 	enableSittingState()
-	isSittingOnHead = createInvisibleSeat()
-	if not isSittingOnHead then
+	if not createInvisibleSeat() then
+		isSittingOnHead = false
 		disableSittingState()
 		headTarget = nil
+		headPlayer = nil
 	end
 	return isSittingOnHead
 end
@@ -763,6 +776,7 @@ end)
 stopSitBtn.MouseButton1Click:Connect(function()
 	isSittingOnHead = false
 	headTarget = nil
+	headPlayer = nil
 	disableSittingState()
 end)
 
@@ -858,13 +872,13 @@ end)
 -- LOOP PRINCIPAL FIXADO EM PRE-RENDER
 local hue = 0
 RunService.RenderStepped:Connect(function()
-	if isSittingOnHead and headTarget and headTarget.Parent and invisibleSeat then
-		local seatCFrame = getFlatTargetCFrame()
-		if seatCFrame then
-			invisibleSeat.CFrame = seatCFrame
+	if isSittingOnHead then
+		if getLockCFrame() then
+			applyLock()
 		else
 			isSittingOnHead = false
 			headTarget = nil
+			headPlayer = nil
 			disableSittingState()
 		end
 	end

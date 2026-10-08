@@ -673,8 +673,14 @@ local function applyLock()
 	if not rootPart or not rootPart.Parent or not humanoid then return end
 	local cf = getLockCFrame()
 	if not cf then return end
-	rootPart.CFrame = cf
-	rootPart.AssemblyLinearVelocity = Vector3.zero
+	-- copia a velocidade do alvo e preve o atraso da rede,
+	-- assim os outros jogadores te veem grudado nele (e nao ao lado)
+	local tRoot = getTargetParts()
+	local vel = tRoot and tRoot.AssemblyLinearVelocity or Vector3.zero
+	local ping = 0.1
+	pcall(function() ping = math.clamp(player:GetNetworkPing(), 0.03, 0.3) end)
+	rootPart.CFrame = cf + vel * ping
+	rootPart.AssemblyLinearVelocity = vel
 	rootPart.AssemblyAngularVelocity = Vector3.zero
 	if not humanoid.Sit then humanoid.Sit = true end
 end
